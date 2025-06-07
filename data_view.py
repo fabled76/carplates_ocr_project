@@ -7,13 +7,13 @@ import matplotlib.pyplot as plt
 from scipy.stats import skew, kurtosis
 from skimage.measure import shannon_entropy
 
-# Dataset path
+# Dataset path and output directory for plots
 dataset_dir = 'data_chars'
+output_dir = 'plots'
 
 data = []
 image_counts = {}
 
-# === Extract Data ===
 for class_name in os.listdir(dataset_dir):
     class_path = os.path.join(dataset_dir, class_name)
     if not os.path.isdir(class_path):
@@ -51,8 +51,8 @@ for class_name in os.listdir(dataset_dir):
 # Create DataFrame
 df = pd.DataFrame(data)
 
-# === 1. Bar Chart: Image Count per Class ===
-plt.figure(figsize=(10, 5))
+# === Image Count per Class ===
+plt.figure(figsize=(13, 9))
 bars = plt.bar(image_counts.keys(), image_counts.values(), color='lightblue')
 
 total_images = sum(image_counts.values())
@@ -67,14 +67,42 @@ plt.ylabel('Number of Images')
 plt.title('Image Count per Class with Percentages')
 plt.xticks(rotation=45)
 plt.tight_layout()
+plt.savefig(os.path.join(output_dir, 'image_count_per_class.png'), dpi=300, bbox_inches='tight')
 plt.show()
 
-# === 2. Correlogram: Correlation of Class-wise Features ===
-grouped = df.groupby('class').mean(numeric_only=True)
-corr = grouped.corr()
+# === Image resolution distribution and aspect ratio distribution ===
+resolutions = []
+aspect_ratios = []
 
-plt.figure(figsize=(10, 8))
-sns.heatmap(corr, annot=True, cmap='coolwarm', fmt=".2f")
-plt.title('Correlogram of Class-wise Grayscale Feature Averages')
+for class_name in os.listdir(dataset_dir):
+    class_path = os.path.join(dataset_dir, class_name)
+    if not os.path.isdir(class_path):
+        continue
+
+    for filename in os.listdir(class_path):
+        if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+            file_path = os.path.join(class_path, filename)
+            img = cv2.imread(file_path)
+            if img is not None:
+                h, w = img.shape[:2]
+                resolutions.append((w, h))
+                aspect_ratios.append(w / h)
+
+plt.figure(figsize=(12, 5))
+plt.subplot(1, 2, 1)
+plt.scatter(*zip(*resolutions), alpha=0.5, color='teal', s=50, edgecolor='black')
+plt.xlabel('Width (pixels)', fontweight='bold')
+plt.ylabel('Height (pixels)', fontweight='bold')
+plt.title('Image Resolution Distribution', fontweight='bold')
+plt.grid(True, linestyle='--', alpha=0.7)
+
+plt.subplot(1, 2, 2)
+sns.histplot(aspect_ratios, bins=30, kde=True, color='coral', edgecolor='black')
+plt.xlabel('Aspect Ratio (Width/Height)', fontweight='bold')
+plt.ylabel('Frequency', fontweight='bold')
+plt.title('Aspect Ratio Distribution', fontweight='bold')
+plt.grid(True, linestyle='--', alpha=0.7)
+
 plt.tight_layout()
+plt.savefig(os.path.join(output_dir, 'resolution_aspect_ratio.png'), dpi=300, bbox_inches='tight')
 plt.show()

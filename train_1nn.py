@@ -4,7 +4,6 @@ import numpy as np
 import joblib
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, accuracy_score
 from evaluation import evaluate_model
 
 # === 1. Zoning Feature Extractor ===
@@ -41,11 +40,16 @@ def preprocess_image(img_path, size=(32, 32)):
 
 # === 3. Load Dataset ===
 def load_dataset(folder):
-    X, y = [], []
-    for class_name in os.listdir(folder):
+    """
+    Load images from subdirectories in the dataset folder.
+    Each subdirectory name is used as a class label.
+    """
+    X, y, class_names = [], [], []
+    for class_name in sorted(os.listdir(folder)):
         class_path = os.path.join(folder, class_name)
         if not os.path.isdir(class_path):
             continue
+        class_names.append(class_name)
         for file in os.listdir(class_path):
             if file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
                 img_path = os.path.join(class_path, file)
@@ -54,11 +58,11 @@ def load_dataset(folder):
                     features = extract_zoning_features(processed)
                     X.append(features)
                     y.append(class_name)
-    return np.array(X), np.array(y)
+    return np.array(X), np.array(y), class_names
 
 # === 4. Load and Split ===
-dataset_folder = 'data_chars'  # <- your root folder with subfolders per class
-X, y = load_dataset(dataset_folder)
+dataset_folder = 'data_chars'
+X, y, class_names = load_dataset(dataset_folder)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -71,4 +75,4 @@ y_pred = knn.predict(X_test)
 
 joblib.dump(knn, 'ocr_knn_model.pkl')
 
-evaluate_model(y_test, y_pred)
+evaluate_model(y_test, y_pred, class_names)
