@@ -44,7 +44,7 @@ def plot_confusion_matrix(cm, class_names):
         cmap=cmap,
         xticklabels=class_names,
         yticklabels=class_names,
-        cbar_kws={'label': 'Normalized Count'},
+        cbar_kws={'label': 'Proportion of True Class'},
         annot_kws={'size': 10},
         square=True,
         linewidths=0.5,
