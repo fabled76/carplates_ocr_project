@@ -4,7 +4,7 @@ from skimage.feature import hog
 import matplotlib.pyplot as plt
 
 # Load the trained SVM model and label encoder
-model_path = "svm_ocr_model.pkl"
+model_path = "models/svm_ocr_model.pkl"
 label_encoder_path = "label_encoder.pkl"
 svm = joblib.load(model_path)
 label_encoder = joblib.load(label_encoder_path)

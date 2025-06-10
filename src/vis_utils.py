@@ -105,6 +105,114 @@ def compute_variance_image_per_class(dataset_dir, output_dir, target_size=(128, 
         print(f"Variance image for class {class_name} saved to {output_path}")
 
 
+def compute_gradient_map_per_class(dataset_dir, output_dir, target_size=(128, 128)):
+    """
+    Compute gradient magnitude image for each class based on the mean image.
+    Images are saved in output_dir/gradient_images in grayscale, normalized to [0, 255].
+
+    Args:
+        dataset_dir (str): Path to the dataset directory.
+        output_dir (str): Path to save gradient images.
+        target_size (tuple): (width, height) to resize images to (default: 128x128).
+    """
+    # Create subfolder for gradient images
+    gradient_dir = os.path.join(output_dir, 'gradient_images')
+    if not os.path.exists(gradient_dir):
+        os.makedirs(gradient_dir)
+
+    for class_name in os.listdir(dataset_dir):
+        class_path = os.path.join(dataset_dir, class_name)
+        if not os.path.isdir(class_path):
+            continue
+
+        image_arrays = []
+        for filename in os.listdir(class_path):
+            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                file_path = os.path.join(class_path, filename)
+                img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
+                if img is not None:
+                    # Resize image to target size
+                    img_resized = cv2.resize(img, target_size, interpolation=cv2.INTER_AREA)
+                    image_arrays.append(img_resized.astype(np.float32))
+
+        if not image_arrays:
+            print(f"No valid images found for class {class_name}.")
+            continue
+
+        # Compute pixel-wise average
+        sum_image = np.sum(image_arrays, axis=0)
+        avg_image = sum_image / len(image_arrays)
+        avg_image = avg_image.astype(np.uint8)
+
+        # Compute gradients using Sobel
+        sobel_x = cv2.Sobel(avg_image, cv2.CV_64F, 1, 0, ksize=3)
+        sobel_y = cv2.Sobel(avg_image, cv2.CV_64F, 0, 1, ksize=3)
+        gradient_magnitude = np.sqrt(sobel_x ** 2 + sobel_y ** 2)
+
+        # Normalize to [0, 255]
+        grad_min = np.min(gradient_magnitude)
+        grad_max = np.max(gradient_magnitude)
+        if grad_max > grad_min:
+            gradient_magnitude = (gradient_magnitude - grad_min) / (grad_max - grad_min) * 255
+        else:
+            gradient_magnitude = np.zeros_like(gradient_magnitude)
+        gradient_magnitude = gradient_magnitude.astype(np.uint8)
+
+        # Save the gradient image
+        output_path = os.path.join(gradient_dir, f'gradient_image_{class_name}.png')
+        cv2.imwrite(output_path, gradient_magnitude)
+        print(f"Gradient image for class {class_name} saved to {output_path}")
+
+
+def plot_average_histogram_per_class(dataset_dir, output_dir, bins=256):
+    """
+    Plot average histogram of pixel intensities for each class.
+    Histograms are saved in output_dir/histogram_plots.
+
+    Args:
+        dataset_dir (str): Path to the dataset directory.
+        output_dir (str): Path to save histogram plots.
+        bins (int): Number of histogram bins (default: 256).
+    """
+    # Create subfolder for histogram plots
+    histogram_dir = os.path.join(output_dir, 'histogram_plots')
+    if not os.path.exists(histogram_dir):
+        os.makedirs(histogram_dir)
+
+    for class_name in os.listdir(dataset_dir):
+        class_path = os.path.join(dataset_dir, class_name)
+        if not os.path.isdir(class_path):
+            continue
+
+        histograms = []
+        for filename in os.listdir(class_path):
+            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                file_path = os.path.join(class_path, filename)
+                img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
+                if img is not None:
+                    hist, bin_edges = np.histogram(img.flatten(), bins=bins, range=(0, 255))
+                    histograms.append(hist)
+
+        if not histograms:
+            print(f"No valid images found for class {class_name}.")
+            continue
+
+        # Compute average histogram
+        avg_hist = np.mean(histograms, axis=0)
+
+        # Plot histogram
+        plt.figure(figsize=(8, 6))
+        plt.bar(range(bins), avg_hist, width=1.0, color='blue', edgecolor='black')
+        plt.title(f'Average Histogram for Class {class_name}')
+        plt.xlabel('Pixel Intensity')
+        plt.ylabel('Frequency')
+        plt.grid(True, linestyle='--', alpha=0.7)
+        plt.tight_layout()
+        output_path = os.path.join(histogram_dir, f'histogram_{class_name}.png')
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close()
+
+
 def plot_image_count_per_class(image_counts, output_dir):
     """
     Generate a bar plot of image counts per class with percentage labels.
@@ -179,7 +287,7 @@ def plot_resolution_aspect_ratio(dataset_dir, output_dir):
 
 def plot_image_overview(dataset_dir, output_dir):
     """
-    Generate an overview plot showing mean and variance images for each class.
+    Generate an overview plot showing mean, variance, and gradient images for each class.
 
     Args:
         dataset_dir (str): Path to the dataset directory.
@@ -187,6 +295,7 @@ def plot_image_overview(dataset_dir, output_dir):
     """
     mean_dir = os.path.join(output_dir, 'mean_images')
     variance_dir = os.path.join(output_dir, 'variance_images')
+    gradient_dir = os.path.join(output_dir, 'gradient_images')
 
     # Get list of classes
     classes = [d for d in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, d))]
@@ -194,13 +303,13 @@ def plot_image_overview(dataset_dir, output_dir):
         print("No classes found in dataset directory.")
         return
 
-    # Set up figure: 2 columns (mean, variance), one row per class
+    # Set up figure: 3 columns (mean, variance, gradient), one row per class
     n_classes = len(classes)
-    fig, axes = plt.subplots(n_classes, 2, figsize=(8, 4 * n_classes))
+    fig, axes = plt.subplots(n_classes, 3, figsize=(12, 4 * n_classes))
 
-    # Handle single class case (axes is not a 2D array)
+    # Handle single class case
     if n_classes == 1:
-        axes = np.array([axes]).reshape(1, -1)
+        axes = np.array([axes]).reshape(1 + 1, -1)
 
     for i, class_name in enumerate(sorted(classes)):
         # Load mean image
@@ -210,6 +319,10 @@ def plot_image_overview(dataset_dir, output_dir):
         # Load variance image
         variance_path = os.path.join(variance_dir, f'variance_image_{class_name}.png')
         variance_img = cv2.imread(variance_path, cv2.IMREAD_GRAYSCALE)
+
+        # Load gradient image
+        gradient_path = os.path.join(gradient_dir, f'gradient_image_{class_name}.png')
+        gradient_img = cv2.imread(gradient_path, cv2.IMREAD_GRAYSCALE)
 
         # Plot mean image
         if mean_img is not None:
@@ -226,6 +339,14 @@ def plot_image_overview(dataset_dir, output_dir):
         else:
             axes[i, 1].text(0.5, 0.5, 'No Variance Image', ha='center', va='center')
         axes[i, 1].axis('off')
+
+        # Plot gradient image
+        if gradient_img is not None:
+            axes[i, 2].imshow(gradient_img, cmap='gray')
+            axes[i, 2].set_title(f'{class_name} Gradient')
+        else:
+            axes[i, 2].text(0.5, 0.5, 'No Gradient Image', ha='center', va='center')
+        axes[i, 2].axis('off')
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'image_overview.png'), dpi=300, bbox_inches='tight')

@@ -7,6 +7,8 @@ from skimage.measure import shannon_entropy
 from src.vis_utils import (
     compute_average_image_per_class,
     compute_variance_image_per_class,
+    compute_gradient_map_per_class,
+    plot_average_histogram_per_class,
     plot_image_count_per_class,
     plot_resolution_aspect_ratio,
     plot_image_overview
@@ -59,6 +61,8 @@ df = pd.DataFrame(data)
 # creating plots
 compute_average_image_per_class(dataset_dir, output_dir)
 compute_variance_image_per_class(dataset_dir, output_dir)
+compute_gradient_map_per_class(dataset_dir, output_dir)
+plot_average_histogram_per_class(dataset_dir, output_dir)
 plot_image_count_per_class(image_counts, output_dir)
 plot_resolution_aspect_ratio(dataset_dir, output_dir)
 plot_image_overview(dataset_dir, output_dir)
