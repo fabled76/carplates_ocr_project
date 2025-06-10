@@ -1,5 +1,4 @@
 import cv2
-import numpy as np
 import joblib
 from skimage.feature import hog
 import matplotlib.pyplot as plt
