@@ -176,3 +176,5 @@ cython_debug/
 # Data files
 data/
 data_chars/
+plots/
+models/ocr_rf_model.pkl

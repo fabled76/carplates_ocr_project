@@ -15,7 +15,8 @@ def preprocess_image(img_path, size=(32, 32)):
     if img is None:
         return None
     _, thresh = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    return thresh
+    resized = cv2.resize(thresh, size, interpolation=cv2.INTER_AREA)
+    return resized
 
 # === Load Dataset ===
 def load_dataset(folder):
