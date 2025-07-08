@@ -2,15 +2,31 @@ import cv2
 import joblib
 from skimage.feature import hog
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Load the trained SVM model and label encoder
-model_path = "models/svm_ocr_model.pkl"
-label_encoder_path = "label_encoder.pkl"
-svm = joblib.load(model_path)
-label_encoder = joblib.load(label_encoder_path)
+model_path = "models/ocr_knn_model.pkl"
+model = joblib.load(model_path)
 
 def preprocess_image(image):
     return image
+
+def extract_zoning_features(img, zones=(4, 4)):
+    """
+    Divide image into zones and compute density in each.
+    Returns a 1D feature vector.
+    """
+    h, w = img.shape
+    zh, zw = h // zones[0], w // zones[1]
+    features = []
+
+    for i in range(zones[0]):
+        for j in range(zones[1]):
+            zone = img[i * zh:(i + 1) * zh, j * zw:(j + 1) * zw]
+            density = np.sum(zone == 255) / zone.size  # white pixel ratio
+            features.append(density)
+
+    return features
 
 def extract_hog_features(image):
     resized = cv2.resize(image, (32, 32), interpolation=cv2.INTER_AREA)
@@ -143,7 +159,6 @@ def detect_regions_cca(image):
 def predict(image_path, method="canny"):
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     original_image = cv2.imread(image_path)
-    image = preprocess_image(image)
 
     if method == "canny":
         components = detect_regions_canny(image)
@@ -165,15 +180,14 @@ def predict(image_path, method="canny"):
     predicted_labels = []
     for (x, y, w, h) in components:
         char_region = image[y:y+h, x:x+w]
-        features = extract_hog_features(char_region)
-        features = features.reshape(1, -1)
-        predicted_char = label_encoder.inverse_transform(svm.predict(features))[0]
+        features = extract_zoning_features(char_region)
+        predicted_char = model.predict(np.array(features).reshape(1, -1))[0]
         predicted_labels.append(predicted_char)
 
     return ''.join(predicted_labels), original_image, components
 
 if __name__ == "__main__":
-    test_image_path = "image.png"
+    test_image_path = "alemania.png"
 
     detection_method = "cca" # Change to "canny", "selective_search", "mser" or "cca" as needed
 
@@ -188,4 +202,4 @@ if __name__ == "__main__":
     plt.imshow(cv2.cvtColor(original_image_with_boxes, cv2.COLOR_BGR2RGB))
     plt.title(f'Bounding Boxes Over Characters ({detection_method.capitalize()} + IoU)')
     plt.axis('off')
-    plt.show()
+    plt.imsave("predicted_output.png", original_image_with_boxes, cmap='gray')
